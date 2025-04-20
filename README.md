@@ -1,4 +1,4 @@
-# inspirecloud_github
+# inspirecloud_mobile
 
 A new Flutter project.
 

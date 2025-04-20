@@ -34,7 +34,7 @@ class QuoteService {
     }
   }
 
-  // Delete a saved quote##
+  // Delete a saved quote
   Future<void> deleteQuote(String quoteId) async {
     try {
       await _firestore.collection(_collection).doc(quoteId).delete();

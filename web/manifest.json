@@ -1,6 +1,6 @@
 {
-    "name": "inspirecloud_github",
-    "short_name": "inspirecloud_github",
+    "name": "inspirecloud_mobile",
+    "short_name": "inspirecloud_mobile",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

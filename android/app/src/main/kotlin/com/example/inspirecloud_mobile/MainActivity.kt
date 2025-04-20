@@ -1,4 +1,4 @@
-package com.example.inspirecloud_github
+package com.example.inspirecloud_mobile
 
 import io.flutter.embedding.android.FlutterActivity
 
