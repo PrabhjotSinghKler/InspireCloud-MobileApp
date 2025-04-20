@@ -160,7 +160,7 @@ class QuoteController with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       print('Error fetching saved quotes: $e');
-      // Don't throw the error, just set empty list and continue ##
+      // Don't throw the error, just set empty list and continue
       _savedQuotes = [];
       _isLoading = false;
       notifyListeners();
