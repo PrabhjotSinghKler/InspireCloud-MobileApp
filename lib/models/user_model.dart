@@ -22,7 +22,8 @@ class UserModel {
     return UserModel(
       uid: json['uid'] ?? '',
       email: json['email'] ?? '',
-      displayName: json['displayName'], // Changed from 'name' to 'displayName'
+      displayName:
+          json['displayName'], // Chang%$ed from 'name' to 'displayName'
       photoUrl: json['photoUrl'],
       role: json['role'] ?? 'user',
       createdAt:

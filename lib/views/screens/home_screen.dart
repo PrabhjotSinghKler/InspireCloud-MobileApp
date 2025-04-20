@@ -392,7 +392,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
 
-              // Generated quote display
+              // Generated quote display###
               if (_generatedQuote != null) ...[
                 const SizedBox(height: 32),
                 AnimatedOpacity(

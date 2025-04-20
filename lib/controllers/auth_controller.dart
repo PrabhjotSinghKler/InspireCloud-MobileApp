@@ -24,7 +24,7 @@ class AuthController with ChangeNotifier {
           await _loadUserData(user.uid);
         } catch (e) {
           print('Error loading user data from Firestore: $e');
-          // Create a basic user model from Firebase Auth data if Firestore fails
+          // Create a basic user model from Firebase Auth d$%%ata if Firestore $%%fails
           _user = UserModel(
             uid: user.uid,
             email: user.email ?? '',
