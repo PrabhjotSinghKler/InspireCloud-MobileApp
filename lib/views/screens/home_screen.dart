@@ -5,6 +5,7 @@ import '../../controllers/auth_controller.dart';
 import '../../controllers/quote_controller.dart';
 import 'saved_quotes_screen.dart';
 import 'profile_screen.dart';
+import '../../services/logging_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -36,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -44,6 +46,19 @@ class _HomeScreenState extends State<HomeScreen>
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
     _animationController.forward();
+
+    // Log screen view
+    Future.microtask(() {
+      final loggingService = Provider.of<LoggingService>(
+        context,
+        listen: false,
+      );
+      loggingService.log(
+        type: 'page_view',
+        event: 'viewed_HomeScreen',
+        metadata: {},
+      );
+    });
   }
 
   @override
@@ -64,7 +79,19 @@ class _HomeScreenState extends State<HomeScreen>
         context,
         listen: false,
       );
+      final loggingService = Provider.of<LoggingService>(
+        context,
+        listen: false,
+      );
+
       quoteController.shareQuote(_generatedQuote!, _selectedCategory);
+
+      loggingService.log(
+        type: 'activity',
+        event: 'quote_shared',
+        metadata: {'category': _selectedCategory, 'quote': _generatedQuote},
+      );
+
       _showSnackBar('Quote shared successfully');
     } catch (e) {
       _showSnackBar('Error sharing quote: ${e.toString()}', isError: true);
@@ -89,6 +116,12 @@ class _HomeScreenState extends State<HomeScreen>
         context,
         listen: false,
       );
+
+      final loggingService = Provider.of<LoggingService>(
+        context,
+        listen: false,
+      );
+
       final quote = await quoteController.generateQuote(
         prompt: _promptController.text,
         category: _selectedCategory,
@@ -98,6 +131,17 @@ class _HomeScreenState extends State<HomeScreen>
         _generatedQuote = quote;
         _isGenerating = false;
       });
+
+      // 🔥 LOG HERE
+      await loggingService.log(
+        type: 'activity',
+        event: 'quote_generated',
+        metadata: {
+          'category': _selectedCategory,
+          'prompt': _promptController.text,
+          'quote': quote,
+        },
+      );
     } catch (e) {
       setState(() {
         _isGenerating = false;
@@ -117,9 +161,22 @@ class _HomeScreenState extends State<HomeScreen>
         context,
         listen: false,
       );
+
+      final loggingService = Provider.of<LoggingService>(
+        context,
+        listen: false,
+      );
+
       await quoteController.saveQuote(
         content: _generatedQuote!,
         category: _selectedCategory,
+      );
+
+      // 🔥 LOG HERE
+      await loggingService.log(
+        type: 'activity',
+        event: 'quote_saved',
+        metadata: {'category': _selectedCategory, 'quote': _generatedQuote},
       );
 
       _showSnackBar('Quote saved successfully');
@@ -154,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen>
     final authController = Provider.of<AuthController>(context);
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
     final primaryColor = colorScheme.primary;
-    final backgroundColor = colorScheme.background;
+    final backgroundColor = colorScheme.surface;
 
     return Scaffold(
       backgroundColor: backgroundColor,

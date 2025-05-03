@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/quote_controller.dart';
 import 'auth/login_screen.dart';
+import '../../services/logging_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -28,7 +29,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
-    // Animation setup
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -38,12 +39,25 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
     _animationController.forward();
 
-    // Initialize field with current user data
-    final authController = Provider.of<AuthController>(context, listen: false);
-    if (authController.user?.displayName != null) {
-      _displayNameController.text = authController.user!.displayName!;
-    }
     Future.microtask(() {
+      final authController = Provider.of<AuthController>(
+        context,
+        listen: false,
+      );
+      if (authController.user?.displayName != null) {
+        _displayNameController.text = authController.user!.displayName!;
+      }
+
+      final loggingService = Provider.of<LoggingService>(
+        context,
+        listen: false,
+      );
+      loggingService.log(
+        type: 'page_view',
+        event: 'viewed_ProfileScreen',
+        metadata: {},
+      );
+
       Provider.of<QuoteController>(context, listen: false).refreshStatistics();
     });
   }
@@ -94,7 +108,19 @@ class _ProfileScreenState extends State<ProfileScreen>
         context,
         listen: false,
       );
+      final loggingService = Provider.of<LoggingService>(
+        context,
+        listen: false,
+      );
+
       await authController.updateProfilePhoto(_profileImage!);
+
+      // ✅ Log profile photo update
+      await loggingService.log(
+        type: 'activity',
+        event: 'updated_profile_photo',
+        metadata: {'timestamp': DateTime.now().toIso8601String()},
+      );
 
       if (mounted) {
         _showSnackBar('Profile photo updated successfully');
@@ -126,6 +152,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         context,
         listen: false,
       );
+
       await authController.updateDisplayName(
         _displayNameController.text.trim(),
       );
@@ -154,8 +181,10 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Future<void> _signOut(BuildContext context) async {
     final authController = Provider.of<AuthController>(context, listen: false);
+
     try {
       await authController.signOut();
+
       if (context.mounted) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -194,7 +223,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   Widget build(BuildContext context) {
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
     final primaryColor = colorScheme.primary;
-    final backgroundColor = colorScheme.background;
+    final backgroundColor = colorScheme.surface;
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -206,7 +235,18 @@ class _ProfileScreenState extends State<ProfileScreen>
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, size: 20),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () async {
+            final loggingService = Provider.of<LoggingService>(
+              context,
+              listen: false,
+            );
+            await loggingService.log(
+              type: 'navigation',
+              event: 'navigated_profile_to_home',
+              metadata: {'method': 'appbar_back_button'},
+            );
+            Navigator.pop(context);
+          },
         ),
       ),
       body: Consumer<AuthController>(
@@ -222,7 +262,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             return Center(
               child: Text(
                 'No user logged in',
-                style: TextStyle(color: colorScheme.onBackground),
+                style: TextStyle(color: colorScheme.onSurface),
               ),
             );
           }
@@ -244,7 +284,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: colorScheme.onBackground,
+                      color: colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -408,7 +448,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.onBackground,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
           textAlign: TextAlign.center,
         ),
@@ -765,9 +805,19 @@ class _ProfileScreenState extends State<ProfileScreen>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ElevatedButton.icon(
-          onPressed: () {
+          onPressed: () async {
+            final loggingService = Provider.of<LoggingService>(
+              context,
+              listen: false,
+            );
+            await loggingService.log(
+              type: 'navigation',
+              event: 'navigated_profile_to_home',
+              metadata: {},
+            );
             Navigator.pop(context);
           },
+
           icon: const Icon(Icons.home_outlined, size: 20),
           label: const Text('Back to Quote Generator'),
           style: ElevatedButton.styleFrom(

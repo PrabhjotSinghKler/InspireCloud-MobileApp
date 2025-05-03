@@ -11,39 +11,30 @@ class AuthService {
 
   // Sign in with email & password
   // In auth_service.dart
-  Future<UserCredential> signInWithEmailAndPassword(
+  Future<User?> signInWithEmailAndPassword(
     String email,
     String password,
   ) async {
-    print('AuthService signInWithEmailAndPassword called with email: $email');
-    print('AuthService: Attempting to sign in');
     try {
-      final result = await _auth.signInWithEmailAndPassword(
+      final credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      print('Firebase signIn successful. User ID: ${result.user?.uid}');
-      return result;
-    } catch (e) {
-      print('AuthService sign in error: $e');
 
-      // Check for the specific PigeonUserDetails error
-      if (e.toString().contains('PigeonUserDetails')) {
-        // Despite the error, authentication likely succeeded
-        // Check if user is actually signed in
-        final currentUser = _auth.currentUser;
-        if (currentUser != null) {
-          print(
-            'User appears to be authenticated despite error: ${currentUser.email}',
-          );
+      final user = credential.user;
 
-          // Instead of trying to create a UserCredential object manually,
-          // we'll just throw a special error that our controller can recognize
-          throw Exception('AUTH_SUCCEEDED_WITH_ERROR');
-        }
+      if (user != null) {
+        print('AuthService: Sign in successful for ${user.email}');
+        return user;
+      } else {
+        throw FirebaseAuthException(
+          code: 'user-null',
+          message: 'No user returned from sign-in',
+        );
       }
-
-      throw _handleAuthException(e);
+    } catch (e, stackTrace) {
+      print('AuthService sign in error: $e');
+      rethrow;
     }
   }
 

@@ -5,6 +5,7 @@ import '../../../controllers/auth_controller.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import '../home_screen.dart';
+import '../../../services/logging_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,6 +20,25 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _hasLoggedView = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    if (!_hasLoggedView) {
+      final loggingService = Provider.of<LoggingService>(
+        context,
+        listen: false,
+      );
+      loggingService.log(
+        type: 'page_view',
+        event: 'viewed_LoginScreen',
+        metadata: {},
+      );
+      _hasLoggedView = true;
+    }
+  }
 
   @override
   void dispose() {
@@ -97,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
     // Get the primary theme color
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
     final primaryColor = colorScheme.primary;
-    final backgroundColor = colorScheme.background;
+    final backgroundColor = colorScheme.surface;
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -116,24 +136,25 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // App Logo or Brand Identity
-                    Container(
-                      alignment: Alignment.center,
-                      margin: const EdgeInsets.only(bottom: 32),
-                      height: 80,
-                      width: 80,
-                      decoration: BoxDecoration(
-                        color: primaryColor.withOpacity(0.1),
-                        shape: BoxShape.circle,
+                    // Clean logo without circular container
+                    Center(
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 24),
+                        height: 100,
+                        child: Image.asset(
+                          'assets/images/logo.png', // adjust if your image path is different
+                          fit: BoxFit.contain,
+                        ),
                       ),
-                      child: Icon(Icons.cloud, size: 40, color: primaryColor),
                     ),
+
                     // Welcome Text
                     Text(
-                      'Welcome Back',
+                      'InspireCloud',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: colorScheme.onBackground,
+                        color: colorScheme.onSurface,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -142,7 +163,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       'Sign in to continue to your cloud app',
                       style: TextStyle(
                         fontSize: 16,
-                        color: colorScheme.onBackground.withOpacity(0.6),
+                        color: colorScheme.onSurface.withOpacity(0.6),
                         fontWeight: FontWeight.w400,
                       ),
                       textAlign: TextAlign.center,
@@ -266,7 +287,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Text(
                           "Don't have an account?",
                           style: TextStyle(
-                            color: colorScheme.onBackground.withOpacity(0.7),
+                            color: colorScheme.onSurface.withOpacity(0.7),
                           ),
                         ),
                         TextButton(
@@ -317,14 +338,14 @@ class _LoginScreenState extends State<LoginScreen> {
       obscureText: obscureText,
       keyboardType: keyboardType,
       style: TextStyle(
-        color: Theme.of(context).colorScheme.onBackground,
+        color: Theme.of(context).colorScheme.onSurface,
         fontSize: 16,
       ),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
         hintStyle: TextStyle(
-          color: Theme.of(context).colorScheme.onBackground.withOpacity(0.4),
+          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4),
         ),
         prefixIcon: Icon(icon, color: Theme.of(context).colorScheme.primary),
         suffixIcon: suffixIcon,

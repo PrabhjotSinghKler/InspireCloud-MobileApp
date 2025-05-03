@@ -5,9 +5,10 @@ import '../services/logging_service.dart';
 
 class OpenAIService {
   final String _apiKey;
+  final LoggingService _loggingService; // Injected
   final String _baseUrl = 'https://api.openai.com/v1/chat/completions';
 
-  OpenAIService(this._apiKey) {
+  OpenAIService(this._apiKey, this._loggingService) {
     if (_apiKey.isEmpty) {
       throw Exception('OpenAI API key is not set in .env file');
     }
@@ -17,7 +18,6 @@ class OpenAIService {
     required String prompt,
     required String category,
   }) async {
-    final LoggingService loggingService = LoggingService();
     final HttpMetric metric = FirebasePerformance.instance.newHttpMetric(
       _baseUrl,
       HttpMethod.Post,
@@ -52,16 +52,17 @@ class OpenAIService {
               : 'Generate an inspirational quote about $sanitizedCategory with the following theme: $sanitizedPrompt. Just return the quote text only, without attribution or commentary.';
 
       await metric.start();
-      loggingService.log(
-        LogLevel.info,
-        'Generating quote',
+      final startTime = DateTime.now();
+
+      await _loggingService.log(
+        type: 'activity',
+        event: 'generate_quote_started',
         metadata: {
           'category': sanitizedCategory,
           'promptLength': sanitizedPrompt.length,
+          'timestamp': startTime.toIso8601String(),
         },
       );
-
-      final startTime = DateTime.now();
 
       final response = await http
           .post(
@@ -106,30 +107,35 @@ class OpenAIService {
           throw Exception('Received empty response from API');
         }
 
-        loggingService.log(
-          LogLevel.info,
-          'Quote generated successfully',
+        await _loggingService.log(
+          type: 'activity',
+          event: 'generate_quote_success',
           metadata: {
-            'responseTime': responseTime,
             'category': sanitizedCategory,
+            'responseTimeMs': responseTime,
+            'timestamp': DateTime.now().toIso8601String(),
           },
         );
 
         return sanitizedResponse;
       } else {
-        loggingService.log(
-          LogLevel.error,
-          'Failed to generate quote',
+        await _loggingService.log(
+          type: 'error',
+          event: 'generate_quote_failed',
           metadata: {
             'statusCode': response.statusCode,
-            'response': response.body,
+            'responseBody': response.body,
             'category': sanitizedCategory,
           },
         );
         throw Exception('Failed to generate quote. Please try again.');
       }
     } catch (e, stackTrace) {
-      loggingService.logError(e, stackTrace, reason: 'Error generating quote');
+      await _loggingService.logError(
+        e,
+        stackTrace,
+        reason: 'generate_quote_exception',
+      );
       rethrow;
     } finally {
       await metric.stop();

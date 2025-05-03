@@ -15,27 +15,16 @@ import 'views/screens/saved_quotes_screen.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'services/logging_service.dart';
 import 'services/performance_monitoring_service.dart';
+import 'navigation_service.dart';
+import 'package:provider/provider.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
-  // Ensure Flutter binding is initialized
   WidgetsFlutterBinding.ensureInitialized();
-
-  try {
-    await dotenv.load(fileName: ".env");
-    print("✅ .env file loaded successfully");
-  } catch (e) {
-    print("❌ Failed to load .env file: $e");
-  }
-
-  // Initialize Firebase
+  await dotenv.load(fileName: ".env");
   await Firebase.initializeApp();
-
-  // Initialize Crashlytics
-  await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(true);
   FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterError;
-
-  // Pass OpenAIService instance with API key
-  final openAiService = OpenAIService(dotenv.env['OPENAI_API_KEY'] ?? '');
 
   runApp(
     MultiProvider(
@@ -44,54 +33,86 @@ void main() async {
         Provider<PerformanceMonitoringService>(
           create: (_) => PerformanceMonitoringService(),
         ),
-        Provider<OpenAIService>(create: (_) => openAiService),
-      ],
-      child: MyApp(openAiService: openAiService),
-    ),
-  );
-}
-
-class MyApp extends StatelessWidget {
-  final OpenAIService openAiService;
-
-  const MyApp({super.key, required this.openAiService});
-
-  @override
-  Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        // Auth controller
+        Provider<OpenAIService>(
+          create:
+              (context) => OpenAIService(
+                dotenv.env['OPENAI_API_KEY'] ?? '',
+                context.read<LoggingService>(),
+              ),
+        ),
         ChangeNotifierProvider(create: (_) => AuthController()),
-
-        // Services (pass openAiService correctly)
-        Provider<OpenAIService>.value(value: openAiService),
         Provider(create: (_) => QuoteService()),
-
-        // Quote controller (depends on services)
-        ChangeNotifierProxyProvider2<
+        ChangeNotifierProxyProvider3<
           OpenAIService,
           QuoteService,
+          LoggingService,
           QuoteController
         >(
           create:
               (context) => QuoteController(
                 openAIService: context.read<OpenAIService>(),
                 quoteService: context.read<QuoteService>(),
+                loggingService: context.read<LoggingService>(),
               ),
           update:
-              (context, openAIService, quoteService, previous) =>
-                  QuoteController(
-                    openAIService: openAIService,
-                    quoteService: quoteService,
-                  ),
+              (
+                context,
+                openAIService,
+                quoteService,
+                loggingService,
+                previous,
+              ) => QuoteController(
+                openAIService: openAIService,
+                quoteService: quoteService,
+                loggingService: loggingService,
+              ),
+        ),
+      ],
+      child: const MyApp(),
+    ),
+  );
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProxyProvider3<
+          OpenAIService,
+          QuoteService,
+          LoggingService,
+          QuoteController
+        >(
+          create:
+              (context) => QuoteController(
+                openAIService: context.read<OpenAIService>(),
+                quoteService: context.read<QuoteService>(),
+                loggingService: context.read<LoggingService>(),
+              ),
+          update:
+              (
+                context,
+                openAIService,
+                quoteService,
+                loggingService,
+                previous,
+              ) => QuoteController(
+                openAIService: openAIService,
+                quoteService: quoteService,
+                loggingService: loggingService,
+              ),
         ),
       ],
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         title: 'InspireCloud',
         theme: ThemeData(
           primarySwatch: Colors.blue,
-          visualDensity: VisualDensity.adaptivePlatformDensity,
           useMaterial3: true,
+          visualDensity: VisualDensity.adaptivePlatformDensity,
           pageTransitionsTheme: const PageTransitionsTheme(
             builders: {
               TargetPlatform.android: ZoomPageTransitionsBuilder(),
@@ -104,6 +125,7 @@ class MyApp extends StatelessWidget {
           '/home': (context) => const HomeScreen(),
           '/profile': (context) => const ProfileScreen(),
           '/saved_quotes': (context) => const SavedQuotesScreen(),
+          '/login': (context) => const LoginScreen(),
         },
         debugShowCheckedModeBanner: false,
       ),

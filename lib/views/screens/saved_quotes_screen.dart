@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/quote_controller.dart';
 import '../../models/saved_quote_model.dart';
+import '../../services/logging_service.dart';
+import '../../navigation_service.dart';
 
 class SavedQuotesScreen extends StatefulWidget {
   const SavedQuotesScreen({super.key});
@@ -21,7 +23,7 @@ class _SavedQuotesScreenState extends State<SavedQuotesScreen>
   @override
   void initState() {
     super.initState();
-    // Animation setup
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 500),
@@ -31,29 +33,33 @@ class _SavedQuotesScreenState extends State<SavedQuotesScreen>
     );
     _animationController.forward();
 
-    // Fetch saved quotes when screen loads
-    Future.microtask(
-      () =>
-          Provider.of<QuoteController>(
-            context,
-            listen: false,
-          ).fetchSavedQuotes(),
-    );
+    Future.microtask(() {
+      final loggingService = Provider.of<LoggingService>(
+        context,
+        listen: false,
+      );
+      loggingService.log(
+        type: 'page_view',
+        event: 'viewed_SavedQuotesScreen',
+        metadata: {},
+      );
+
+      Provider.of<QuoteController>(context, listen: false).fetchSavedQuotes();
+    });
   }
 
   @override
   void dispose() {
-    // When leaving the saved quotes screen, refresh statistics to update counters
-    if (mounted) {
-      Future.microtask(() {
-        if (context.mounted) {
-          final quoteController = Provider.of<QuoteController>(
-            context,
-            listen: false,
-          );
-          quoteController.refreshStatistics();
-        }
-      });
+    final quoteController =
+        navigatorKey.currentContext != null
+            ? Provider.of<QuoteController>(
+              navigatorKey.currentContext!,
+              listen: false,
+            )
+            : null;
+
+    if (quoteController != null) {
+      quoteController.refreshStatistics();
     }
 
     _animationController.dispose();
@@ -95,7 +101,7 @@ class _SavedQuotesScreenState extends State<SavedQuotesScreen>
   Widget build(BuildContext context) {
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
     final primaryColor = colorScheme.primary;
-    final backgroundColor = colorScheme.background;
+    final backgroundColor = colorScheme.surface;
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -107,7 +113,18 @@ class _SavedQuotesScreenState extends State<SavedQuotesScreen>
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, size: 20),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () async {
+            final loggingService = Provider.of<LoggingService>(
+              context,
+              listen: false,
+            );
+            await loggingService.log(
+              type: 'navigation',
+              event: 'navigated_savedQuotes_to_home',
+              metadata: {'method': 'appbar_back_button'},
+            );
+            Navigator.pop(context);
+          },
         ),
       ),
       body: Column(
@@ -218,7 +235,7 @@ class _SavedQuotesScreenState extends State<SavedQuotesScreen>
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: colorScheme.onBackground,
+                                color: colorScheme.onSurface,
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -228,9 +245,7 @@ class _SavedQuotesScreenState extends State<SavedQuotesScreen>
                                   ? 'Generate and save quotes from the home screen to build your collection'
                                   : 'Try a different search term or clear your search',
                               style: TextStyle(
-                                color: colorScheme.onBackground.withOpacity(
-                                  0.7,
-                                ),
+                                color: colorScheme.onSurface.withOpacity(0.7),
                                 fontSize: 15,
                                 height: 1.5,
                               ),
@@ -262,9 +277,20 @@ class _SavedQuotesScreenState extends State<SavedQuotesScreen>
                               ),
                             if (_searchQuery.isEmpty)
                               OutlinedButton.icon(
-                                onPressed: () {
+                                onPressed: () async {
+                                  final loggingService =
+                                      Provider.of<LoggingService>(
+                                        context,
+                                        listen: false,
+                                      );
+                                  await loggingService.log(
+                                    type: 'navigation',
+                                    event: 'navigated_savedQuotes_to_home',
+                                    metadata: {'method': 'create_quote_button'},
+                                  );
                                   Navigator.pop(context);
                                 },
+
                                 icon: const Icon(Icons.add),
                                 label: const Text('Create New Quote'),
                                 style: OutlinedButton.styleFrom(
@@ -533,11 +559,11 @@ class _SavedQuotesScreenState extends State<SavedQuotesScreen>
             ),
             actions: [
               TextButton(
-                child: const Text('CANCEL'),
                 onPressed: () => Navigator.pop(context, false),
                 style: TextButton.styleFrom(
                   foregroundColor: colorScheme.onSurface.withOpacity(0.8),
                 ),
+                child: const Text('CANCEL'),
               ),
               TextButton(
                 child: Text(
@@ -553,18 +579,38 @@ class _SavedQuotesScreenState extends State<SavedQuotesScreen>
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            backgroundColor: colorScheme.background,
+            backgroundColor: colorScheme.surface,
           ),
     );
   }
 
-  void _shareQuote(SavedQuoteModel quote) {
+  void _shareQuote(SavedQuoteModel quote) async {
     try {
       final quoteController = Provider.of<QuoteController>(
         context,
         listen: false,
       );
+
+      final loggingService = Provider.of<LoggingService>(
+        context,
+        listen: false,
+      );
+
+      // Share the quote
       quoteController.shareQuote(quote.content, quote.category);
+
+      // Log the share activity
+      await loggingService.log(
+        type: 'activity',
+        event: 'shared_quote',
+        metadata: {
+          'quoteId': quote.id,
+          'category': quote.category,
+          'length': quote.content.length,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+
       _showSnackBar('Quote shared successfully');
     } catch (e) {
       _showSnackBar('Error sharing quote: ${e.toString()}', isError: true);

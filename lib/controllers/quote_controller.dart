@@ -6,6 +6,7 @@ import '../services/openai_service.dart';
 import '../services/quote_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:share_plus/share_plus.dart';
+import '../services/logging_service.dart';
 
 class QuoteController with ChangeNotifier {
   final OpenAIService _openAIService;
@@ -13,6 +14,7 @@ class QuoteController with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   int _generatedQuotesCount = 0;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final LoggingService _loggingService;
 
   List<SavedQuoteModel> _savedQuotes = [];
   bool _isLoading = false;
@@ -20,7 +22,9 @@ class QuoteController with ChangeNotifier {
   QuoteController({
     required OpenAIService openAIService,
     required QuoteService quoteService,
+    required LoggingService loggingService,
   }) : _openAIService = openAIService,
+       _loggingService = loggingService,
        _quoteService = quoteService {
     _initializeCounters();
   }
@@ -55,14 +59,26 @@ class QuoteController with ChangeNotifier {
     }
   }
 
-  Future<void> shareQuote(String quote, String category) async {
+  Future<void> shareQuote(String quoteContent, String category) async {
     try {
-      final String text =
-          '"$quote"\n\nCategory: $category\n\nShared via InspireCloud';
-      await Share.share(text);
-    } catch (e) {
-      print('Error sharing quote: $e');
-      throw Exception('Failed to share quote: $e');
+      await Share.share('"$quoteContent"\n\n— Shared via InspireCloud');
+
+      // Log the share event
+      await _loggingService.log(
+        type: 'activity',
+        event: 'shared_quote',
+        metadata: {
+          'content': quoteContent,
+          'category': category,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+    } catch (e, stackTrace) {
+      await _loggingService.logError(
+        e,
+        stackTrace,
+        reason: 'Failed to share quote',
+      );
     }
   }
 
@@ -169,21 +185,28 @@ class QuoteController with ChangeNotifier {
 
   // Delete a saved quote
   Future<void> deleteQuote(String quoteId) async {
-    if (_auth.currentUser == null) {
-      throw Exception('User must be logged in to delete quotes');
-    }
-
-    _isLoading = true;
-    notifyListeners();
-
     try {
       await _quoteService.deleteQuote(quoteId);
-      _savedQuotes.removeWhere((quote) => quote.id == quoteId);
-      _isLoading = false;
+
+      // Log the delete event
+      await _loggingService.log(
+        type: 'activity',
+        event: 'deleted_quote',
+        metadata: {
+          'quoteId': quoteId,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+
+      // Remove it from local list if needed
+      _savedQuotes.removeWhere((q) => q.id == quoteId);
       notifyListeners();
-    } catch (e) {
-      _isLoading = false;
-      notifyListeners();
+    } catch (e, stackTrace) {
+      await _loggingService.logError(
+        e,
+        stackTrace,
+        reason: 'Failed to delete quote',
+      );
       rethrow;
     }
   }
